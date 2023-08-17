@@ -2,4 +2,7 @@
 
 ## She is doing great!
 
-- `if(tonight fighting == true) System.out.println("你一定可以的！");`
+```Java
+if(tonight fighting == true)
+	System.out.println("你一定可以的！");
+```
