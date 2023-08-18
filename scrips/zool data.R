@@ -51,6 +51,7 @@ df$time_badge[is.na(df$time_badge)] <- 0
 df <- df[!is.na(df$warning), ]
 
 df$times[df$times >= 2000] <- NA
+df <- df[!is.na(df$times), ]
 
 df<-df[df$player_id!=358,]
 
@@ -98,53 +99,31 @@ df <- df %>%
   mutate(total_time = sum(times))
 
 #Analysis
-
 ##cox
 install.packages("survival")
 library(survival)
 surv_obj <- with(df, Surv(degree, churn))
-cox_model <- coxph(surv_obj ~ deaths+times+inputs+warning+total_time+dup_count+gameover, data = df)
+cox_model <- coxph(surv_obj ~ collected_badge+time_badge+warning+total_time+dup_flag+gameover, data = df)
 summary(cox_model)
 
-##分层cox
-df$natural_churn <- as.factor(df$natural_churn)
-surv_obj1 <- Surv(time = df$degree, event = df$natural_churn)
-model1 <- coxph(surv_obj ~ deaths+times+inputs+warning+total_time+dup_count+gameover + strata(natural_churn), data = df)
-summary(model1)
-##crr
 
-install.packages("cmprsk")
-library(cmprsk)
-cov.mat <- cbind(df$inputs, df$deaths, df$dup_count, df$warning, df$total_time, df$times)
-fit <- crr(ftime = df$degree, fstatus = df$natural_churn, cov.mat)
-
-fit1 <- crr(ftime = df$degree, fstatus = df$natural_churn, 
-            cov1 = df[, c("inputs", "deaths","collected","collected_badge","time_badge","dup_count","warning","total_time","times","gameover")],
-            failcode=1,cencode=0)
-fit_na1 <- crr(ftime = df$degree, fstatus = df$natural_churn, 
-            cov1 = df[, c("inputs", "deaths","collected","collected_badge","time_badge","dup_count","warning","total_time","times","gameover")],
-            failcode=2,cencode=0)
-fit2 <- crr(ftime = df$degree, fstatus = df$natural_churn, 
-            cov1 = df[, c("collected_badge","time_badge","dup_count","total_time","warning","gameover")],
-            failcode=1,cencode=0)
-fit_na2 <- crr(ftime = df$degree, fstatus = df$natural_churn, 
-            cov1 = df[, c("collected_badge","time_badge","dup_count","total_time","warning","gameover")],
-            failcode=2,cencode=0)
-summary(fit1)
-summary(fit2)
-##warning
-
-library(stats)
-
-model_deaths <- lm(deaths ~ warning, data = df)
-model_times <- lm(times ~ warning, data = df)
-model_inputs <- lm(inputs ~ warning, data = df)
-model_score <- lm(score ~ warning, data = df)
-model_dup_count <- lm(dup_count ~ warning, data = df)
-model_gameover <- glm(gameover~ warning, data = df, family = binomial)
-
-
-summary(model)
+#graph
+install.packages("ggplot2")
+install.packages("ggpubr")
+library(ggplot2)
+library(ggpubr)
+library(survival)
+library(survminer)
+km_fit <- survfit(surv_obj ~ 1, data = df)
+plot<-ggsurvplot(km_fit, 
+         risk.table = TRUE, 
+         xlab = "Degree", 
+         ylab = "Churn rate", 
+         xlim = c(0, 27), 
+         ylim = c(0.7, 1))
+plot$plot +
+  scale_x_continuous(breaks = seq(min(df$degree), max(df$degree), by = 5))
+ggforest(cox_model, data = df)
 
 
 #Save data
